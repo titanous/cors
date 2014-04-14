@@ -101,60 +101,6 @@ func (o *Options) Header(origin string) (headers map[string]string) {
 	return
 }
 
-// Converts options into CORS headers for a preflight response.
-func (o *Options) PreflightHeader(origin, rMethod, rHeaders string) (headers map[string]string) {
-	headers = make(map[string]string)
-	if !o.AllowAllOrigins && !o.IsOriginAllowed(origin) {
-		return
-	}
-	// verify if requested method is allowed
-	// TODO: Too many for loops
-	for _, method := range o.AllowMethods {
-		if method == rMethod {
-			headers[headerAllowMethods] = strings.Join(o.AllowMethods, ",")
-			break
-		}
-	}
-
-	// verify if requested headers are allowed
-	var allowed []string
-	for _, rHeader := range strings.Split(rHeaders, ",") {
-		rHeader = strings.TrimSpace(rHeader)
-	lookupLoop:
-		for _, allowedHeader := range o.AllowHeaders {
-			if strings.ToLower(rHeader) == strings.ToLower(allowedHeader) {
-				allowed = append(allowed, rHeader)
-				break lookupLoop
-			}
-		}
-	}
-
-	// add allow origin
-	if o.AllowAllOrigins {
-		headers[headerAllowOrigin] = "*"
-	} else {
-		headers[headerAllowOrigin] = origin
-	}
-
-	// add allowed headers
-	if len(allowed) > 0 {
-		headers[headerAllowHeaders] = strings.Join(allowed, ",")
-	}
-
-	// add allow credentials
-	headers[headerAllowCredentials] = strconv.FormatBool(o.AllowCredentials)
-
-	// add exposed headers
-	if len(o.ExposeHeaders) > 0 {
-		headers[headerExposeHeaders] = strings.Join(o.ExposeHeaders, ",")
-	}
-	// add a max age header
-	if o.MaxAge > time.Duration(0) {
-		headers[headerMaxAge] = strconv.FormatInt(int64(o.MaxAge/time.Second), 10)
-	}
-	return
-}
-
 // Looks up if the origin matches one of the patterns
 // generated from Options.AllowOrigins patterns.
 func (o *Options) IsOriginAllowed(origin string) (allowed bool) {
@@ -187,23 +133,9 @@ func Allow(opts *Options) http.HandlerFunc {
 			return
 		}
 
-		requestedMethod := req.Header.Get(headerRequestMethod)
-		requestedHeaders := req.Header.Get(headerRequestHeaders)
-
-		// additional headers to be added to the response.
-		var headers map[string]string
-		if req.Method == "OPTIONS" &&
-			(requestedMethod != "" || requestedHeaders != "") {
-			// TODO: if preflight, respond with exact headers if allowed
-			headers = opts.PreflightHeader(origin, requestedMethod, requestedHeaders)
-		} else {
-			headers = opts.Header(origin)
-		}
-
-		for key, value := range headers {
+		for key, value := range opts.Header(origin) {
 			res.Header().Set(key, value)
 		}
-
 		if req.Method == "OPTIONS" {
 			res.WriteHeader(200)
 		}
