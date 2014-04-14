@@ -182,15 +182,16 @@ func Allow(opts *Options) http.HandlerFunc {
 	}
 
 	return func(res http.ResponseWriter, req *http.Request) {
-		var (
-			origin           = req.Header.Get(headerOrigin)
-			requestedMethod  = req.Header.Get(headerRequestMethod)
-			requestedHeaders = req.Header.Get(headerRequestHeaders)
-			// additional headers to be added
-			// to the response.
-			headers map[string]string
-		)
+		origin := req.Header.Get(headerOrigin)
+		if origin == "" {
+			return
+		}
 
+		requestedMethod := req.Header.Get(headerRequestMethod)
+		requestedHeaders := req.Header.Get(headerRequestHeaders)
+
+		// additional headers to be added to the response.
+		var headers map[string]string
 		if req.Method == "OPTIONS" &&
 			(requestedMethod != "" || requestedHeaders != "") {
 			// TODO: if preflight, respond with exact headers if allowed
