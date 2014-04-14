@@ -199,5 +199,9 @@ func Allow(opts *Options) http.HandlerFunc {
 		for key, value := range headers {
 			res.Header().Set(key, value)
 		}
+
+		if req.Method == "OPTIONS" {
+			res.WriteHeader(200)
+		}
 	}
 }
